@@ -14,9 +14,18 @@ class QueensController(val id: SystemAgentId,
     case Queen.Role => s"Queen-$count"
   }
 
+  private var priorityToAssign = 0
+  protected def nextPriority = {
+    priorityToAssign += 1
+    priorityToAssign
+  }
+
   def initializeNegotiator(nref: NegotiatingAgentRef): Unit = {
     val scope = negotiators.filter(_ != nref).toSet
-    nref ! SystemMessage.Initialize(SystemMessage.SetScope(queenNeg, scope))
+    nref ! SystemMessage.Initialize(
+      SystemMessage.SetScope(queenNeg, scope),
+      SystemMessage.SetPriority(queenNeg, nextPriority)
+    )
   }
 
   def systemMessageReceived: PartialFunction[SystemMessage, Unit] = {
