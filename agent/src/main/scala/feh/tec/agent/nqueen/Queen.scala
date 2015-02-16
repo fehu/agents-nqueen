@@ -24,8 +24,6 @@ class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef) extends Ne
   def stop() = {
     eachNegotiation(_.set(NVar.State, Stopped))
   }
-
-  eachNegotiation(_.set(NVar.State, Stopped))
 }
 
 object Queen{
@@ -34,15 +32,4 @@ object Queen{
   def creator(reportTo: SystemAgentRef) = AgentCreator(Role){
     id => new Queen(id, reportTo)
   }
-}
-
-
-object Test extends App{
-  implicit val asys = ActorSystem.create("test")
-
-  val qc = Queen.creator(null)
-
-  val q1 = qc.create("q-1")
-
-  println(q1)
 }

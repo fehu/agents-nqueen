@@ -35,3 +35,11 @@ class QueensController(val id: SystemAgentId,
 
   protected def unknownSystemMessage(sysMsg: SystemMessage): Unit = sys.error("unknownSystemMessage: " + sysMsg)
 }
+
+object QueensController{
+  val Role = SystemAgentRole("Queens Controller")
+
+  def creator(reportTo: SystemAgentRef, count: Int) = AgentCreator(Role){
+    id => new QueensController(id, QueensNegotiation.id, Queen.creator(reportTo), count)
+  }
+}
