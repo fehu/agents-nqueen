@@ -2,27 +2,30 @@ package feh.tec.agent.nqueen
 
 import akka.actor.ActorSystem
 import feh.tec.agents.comm._
-import feh.tec.agents.comm.agent.{MessageDelaying, NegotiationReactionBuilder}
+import feh.tec.agents.comm.agent.{AgentState, MessageDelaying, NegotiationReactionBuilder}
 import NegotiationState._
 import feh.tec.agents.comm.{NegotiationVar => NVar}
 
-class Queen(val id: NegotiatingAgentId , val reportTo: SystemAgentRef) extends NegotiatingAgent
+class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef) extends NegotiatingAgent
   with MessageDelaying
   with NegotiationReactionBuilder
 {
   protected lazy val initializeNegotiations = (new QueensNegotiation(_)) :: Nil
 
   def messageReceived = {
-    case NegMsg(msg & InState(NotInitialized)) => delayMessage(msg)
+    case NegMsg(msg) if state != AgentState.Initialized => delayMessage(msg)
   }
 
   def start() = {
-    eachNegotiation(_.set(NVar.State, NotInitialized))
+    eachNegotiation(_.set(NVar.State, Negotiating))
+    resendDelayedMessages()
   }
 
   def stop() = {
     eachNegotiation(_.set(NVar.State, Stopped))
   }
+
+  eachNegotiation(_.set(NVar.State, Stopped))
 }
 
 object Queen{
