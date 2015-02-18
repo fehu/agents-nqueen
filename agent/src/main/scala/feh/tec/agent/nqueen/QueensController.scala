@@ -48,7 +48,7 @@ class QueensController(val id: SystemAgentId,
 object QueensController{
   val Role = SystemAgentRole("Queens Controller")
 
-  def creator(reportTo: SystemAgentRef, count: Int) = AgentCreator(Role){
-    id => new QueensController(id, QueensNegotiation.id, Queen.creator(reportTo), count)
+  def creator(reportTo: SystemAgentRef, boardSize: Int) = AgentCreator(Role){
+    id => new QueensController(id, QueensNegotiation.id, Queen.creator(reportTo, boardSize), boardSize)
   }
 }
