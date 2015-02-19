@@ -2,7 +2,7 @@ package feh.tec.agent.nqueen
 
 import feh.tec.agents.comm._
 import feh.tec.agents.comm.agent._
-import PrioritizedNegotiations._
+import PrioritizedNegotiationsFallback._
 import scala.collection.mutable
 import feh.tec.agents.comm.{NegotiationVar => NVar}
 
@@ -30,6 +30,7 @@ trait QueenIssuesHandling
         case IssueNegotiation.Add     => addNewIssues(neg, issues)
         case IssueNegotiation.Remove  => removeIssues(neg, issues)
       }
+    case (_: IssueDemand) & WithLowerPriority() => //ignore
   }
 
   override def topPriorityIsKnown() = resendDelayedMessages()
