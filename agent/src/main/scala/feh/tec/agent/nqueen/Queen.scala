@@ -8,7 +8,8 @@ import feh.tec.agents.comm.{NegotiationVar => NVar}
 import scala.collection.mutable
 import PrioritizedNegotiations._
 
-class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize: Int) extends NegotiatingAgent
+class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize: Int)
+  extends NegotiatingAgent
   with MessageDelaying
   with NegotiationReactionBuilder
   with RegisteringPriorities
@@ -37,7 +38,10 @@ class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize:
   def negotiationFinished(negId: NegotiationId): Unit = ???
 }
 
-trait QueenIssuesHandling extends RegisteringPriorities{
+trait QueenIssuesHandling
+  extends RegisteringPriorities
+  with DomainIterators
+{
   agent: NegotiatingAgent with MessageDelaying with NegotiationReactionBuilder =>
 
   lazy val issueAggregationRequestedBy = mutable.HashSet.empty[NegotiatingAgentRef]
@@ -90,11 +94,16 @@ trait QueenIssuesHandling extends RegisteringPriorities{
         .ensuring(_.contains(issue), s"$issue is not among current issues")
         .filter(_ != issue)
     }
+    resetDomainIterator(negId)
   }
 
-  def resetDomainIterator(negId: NegotiationId) = ???
-  
-  def negotiationFinished(negId: NegotiationId) = ???
+  def resetDomainIterator(negId: NegotiationId) = {
+    val neg = negotiation(negId)
+    val dit = iteratorFor(negId, neg(NVar.CurrentIssues))
+    neg.set(NVar.DomainIterator, dit)
+  }
+
+  def negotiationFinished(negId: NegotiationId)
 }
 
 object Queen{
