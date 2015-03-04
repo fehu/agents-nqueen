@@ -20,7 +20,7 @@ trait QueenIssuesHandling
     case req: IssueRequest =>
       req.action match {
         case IssueNegotiation.Add =>
-          issueAggregationRequestedBy += req.sender.asInstanceOf[NegotiatingAgentRef]
+          issueAggregationRequestedBy += req.sender
           val scope = negotiation(req.negotiation) apply NegotiationVar.Scope
           if(issueAggregationRequestedBy.size == scope.size) aggregateNextIssueToNegotiation(req.negotiation)
         case IssueNegotiation.Remove => issueAggregationRequestedBy.clear()

@@ -52,7 +52,7 @@ object Queen{
 trait QueenNegotiationHandling {
   agent: NegotiatingAgent with NegotiationReactionBuilder with MessageDelaying =>
 
-  def handleNegotiation: PartialFunction[Message, Unit] = handleProposal orElse handleProposalResponse
+  def handleNegotiation = handleProposal orElse handleProposalResponse orElse handleFallback
 
   def handleProposal: PartialFunction[Message, Unit] = {
     case (msg: Proposal) & InState(FallbackState) => delayMessage(msg)
@@ -68,12 +68,69 @@ trait QueenNegotiationHandling {
   }
 
   def handleProposalResponse: PartialFunction[Message, Unit] = {
-    case (msg: Acceptance) & InState(Negotiating) & AwaitingResponse() => ??? // todo
-    case _ => ??? // todo
+    case (msg: Acceptance) & InState(Negotiating) & AwaitingResponse() =>
+      val neg = negotiation(msg.negotiation)
+      setProposalAcceptance(neg, msg, true)
+      //todo: guard config fragment
+      validateAcceptance(neg)
+    case (msg: Acceptance) => // ignore
+    case (msg: Rejection) & InState(Negotiating) & AwaitingResponse() & WithHigherPriority() =>
+      val neg = negotiation(msg.negotiation)
+      setProposalAcceptance(neg, msg, false)
+      setNextProposal(neg)
+      spamCurrentProposal(neg)
+    case (msg: Rejection) & InState(Negotiating) & AwaitingResponse() & WithLowerPriority() =>
+      val neg = negotiation(msg.negotiation)
+      setProposalAcceptance(neg, msg, true)
+      validateAcceptance(neg)
+    case (msg: Rejection) => // ignore
   }
+
+  def handleFallback: PartialFunction[Message, Unit] = {
+    case (msg: FallbackRequest) & InState(Negotiating) & WithPriorityDiff(-1) =>
+      haveToFallback(negotiation(msg.negotiation))
+    case (msg: FallbackRequest) & InState(Waiting) & WithPriorityDiff(-1) =>
+      val neg = negotiation(msg.negotiation)
+      neg.set(NVar.State, Negotiating)
+      setNextProposal(neg)
+      spamCurrentProposal(neg)
+      haveToFallback(neg)
+    case (msg: FallbackRequest) & InState(Negotiating | Waiting) & WithHigherPriority() =>
+      resendDelayedMessages()
+      negotiation(msg.negotiation).set(NVar.State, FallbackState)
+    case (msg: FallbackRequest) & InState(Negotiating | Waiting) =>
+      resendDelayedMessages()
+    case (msg: FallbackRequest) & InState(FallbackState) =>
+      delayMessage(msg)
+    case (msg: IWillChange) & InState(FallbackState) & AwaitingResponse() =>
+      val neg = negotiation(msg.negotiation)
+      resetIterator(neg)
+      resendDelayedMessages()
+      neg.set(NVar.State, Negotiating)
+      setNextProposal(neg)
+      spamCurrentProposal(neg)
+    case (msg: IWillChange) & InState(FallbackState | Negotiating) =>
+      delayMessage(msg)
+    case (msg: IWillChange) => //ignore
+  }
+
+  def setProposalAcceptance(neg: Negotiation, msg: NegotiationResponse, bool: Boolean) =
+    neg.transform(NVar.ProposalAcceptance)(_.getOrElse(Map()) + (msg.sender -> bool))
 
   def respondToProposal(prop: Proposal) = ???
   def breaksConstrains(prop: Proposal): Boolean = ???
 
+  def setNextProposal(neg: Negotiation) = ???
   def spamCurrentProposal(neg: Negotiation) = ???
+
+  def haveToFallback(neg: Negotiation) = {
+    resendDelayedMessages()
+    //todo: guard failed configuration, if known
+    spamIWillChange(neg)
+  }
+  def spamIWillChange(neg: Negotiation) = ???
+
+  def resetIterator(neg: Negotiation) = ???
+
+  def validateAcceptance(neg: Negotiation) = ???
 }
