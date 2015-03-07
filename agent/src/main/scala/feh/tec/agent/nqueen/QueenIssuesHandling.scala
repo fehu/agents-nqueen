@@ -7,9 +7,6 @@ import PrioritizedNegotiationsFallback._
 import scala.collection.mutable
 import feh.tec.agents.comm.{NegotiationVar => NVar}
 
-import NVar.Default._
-import NVar.Default.Stubs._
-
 trait QueenIssuesHandling
   extends RegisteringPriorities
   with DomainIterators
@@ -30,7 +27,7 @@ trait QueenIssuesHandling
           val scope = negotiation(req.negotiation) apply NegotiationVar.Scope
           if(issueAggregationRequestedBy.size == scope.size) {
             aggregateNextIssueToNegotiation(req.negotiation)
-@todo
+//@todo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           }
         case IssueNegotiation.Remove => issueAggregationRequestedBy.clear()
       }
@@ -83,7 +80,7 @@ trait QueenIssuesHandling
   def resetDomainIterator(negId: NegotiationId) = {
     val neg = negotiation(negId)
     val dit = iteratorFor(negId, neg(NVar.CurrentIssues))
-    neg.set(NVar.DomainIterator, dit)
+    neg.set(NVar.DomainIterator)(dit)
   }
 
   def negotiationFinished(negId: NegotiationId)

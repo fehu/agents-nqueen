@@ -16,9 +16,6 @@ class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize:
   with QueenNegotiationHandling
   with ActorLogging
 {
-  import NVar.Default._
-  import NVar.Default.Stubs._
-
   override lazy val Reporting = new ReportingNegotiationsConfig(messageReceived = true)
 
   protected lazy val initializeNegotiations = QueensNegotiation(boardSize)_ :: Nil
@@ -31,15 +28,22 @@ class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize:
 
   def start() = {
     eachNegotiation(
-      _.set(NVar.State, Negotiating),
-      _.set(NVar.CurrentIssues, Nil),
+      _.addNegVarDefaults(
+        NVar.CurrentIssues -> Some(Nil),
+        NVar.AwaitingResponse -> Some(None),
+        NVar.CurrentProposal -> None,
+        NVar.DomainIterator -> None
+//        NVar.ProposalAcceptance -> Some(Map())
+      ),
+      _.set(NVar.State)(Negotiating),
+      _.set(NVar.CurrentIssues)(Nil),
       neg => spamMessage(neg, IssueRequest(neg.id, IssueNegotiation.Add, Nil, neg(NVar.Priority)))
     )
     resendDelayedMessages()
   }
 
   def stop() = {
-    eachNegotiation(_.set(NVar.State, Stopped))
+    eachNegotiation(_.set(NVar.State)(Stopped))
   }
 
   def negotiationFinished(negId: NegotiationId): Unit = ???
@@ -72,7 +76,7 @@ trait QueenNegotiationHandling {
       if(!breaksConstrains(msg)) respondToProposal(msg, acceptance = true)
       else {
         val neg = negotiation(msg.negotiation)
-        neg.set(NVar.State, Negotiating)
+        neg.set(NVar.State)(Negotiating)
         spamCurrentProposal(neg)
         respondToProposal(msg, acceptance = false)
       }
@@ -102,13 +106,13 @@ trait QueenNegotiationHandling {
       haveToFallback(negotiation(msg.negotiation), msg)
     case (msg: FallbackRequest) & InState(Waiting) & WithPriorityDiff(-1) =>
       val neg = negotiation(msg.negotiation)
-      neg.set(NVar.State, Negotiating)
+      neg.set(NVar.State)(Negotiating)
       setNextProposal(neg)
       spamCurrentProposal(neg)
       haveToFallback(neg, msg)
     case (msg: FallbackRequest) & InState(Negotiating | Waiting) & WithHigherPriority() =>
       resendDelayedMessages()
-      negotiation(msg.negotiation).set(NVar.State, FallbackState)
+      negotiation(msg.negotiation).set(NVar.State)(FallbackState)
     case (msg: FallbackRequest) & InState(Negotiating | Waiting) =>
       resendDelayedMessages()
     case (msg: FallbackRequest) & InState(FallbackState) =>
@@ -117,7 +121,7 @@ trait QueenNegotiationHandling {
       val neg = negotiation(msg.negotiation)
       resetDomainIterator(neg.id)
       resendDelayedMessages()
-      neg.set(NVar.State, Negotiating)
+      neg.set(NVar.State)(Negotiating)
       setNextProposal(neg)
       spamCurrentProposal(neg)
     case (msg: IWillChange) & InState(FallbackState | Negotiating) =>
@@ -142,13 +146,13 @@ trait QueenNegotiationHandling {
 
   def setNextProposal(neg: Negotiation) = {
     val it = neg(NVar.DomainIterator)
-    if(it.hasNext) neg.set(NVar.CurrentProposal, Proposal(neg.id, it.next(), neg(NVar.Priority)))//(NVar.Default.Stubs.CurrentProposal)// todo !!!!!!!!!!!!!!!!!!!!!
+    if(it.hasNext) neg.set(NVar.CurrentProposal)(Proposal(neg.id, it.next(), neg(NVar.Priority)))//(NVar.Default.Stubs.CurrentProposal)// todo !!!!!!!!!!!!!!!!!!!!!
     else {
       spamMessage(neg, IssueRequest(neg.id, IssueNegotiation.Remove, Nil, neg(NVar.Priority)))
       val fallback = FallbackRequest(neg.id, neg(NVar.Priority))
       spamMessage(neg, fallback)
-      neg.set(NVar.State, FallbackState)
-      neg.set(NVar.AwaitingResponse, fallback.uuid)
+      neg.set(NVar.State)(FallbackState)
+      neg.set(NVar.AwaitingResponse)(Some(fallback.uuid))
     }
   }
 
@@ -165,7 +169,7 @@ trait QueenNegotiationHandling {
     spamMessage(neg, IWillChange(neg.id, request.uuid, neg(NVar.Priority)))
 
   def validateAcceptance(neg: Negotiation) = { //todo: configurations
-    neg.set(NVar.State, Waiting)
+    neg.set(NVar.State)(Waiting)
     spamMessage(neg, IssueRequest(neg.id, IssueNegotiation.Add, Nil, neg(NVar.Priority)))
     spamCurrentProposal(neg)
   }

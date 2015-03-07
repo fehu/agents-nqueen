@@ -1,8 +1,8 @@
 package feh.tec.agent.nqueen
 
-import feh.tec.agents.comm.{Var, NegotiationId, Negotiation}
+import feh.tec.agents.comm.{NegotiationVar, Var, NegotiationId, Negotiation}
 
-class QueensNegotiation(varUpdated: Negotiation.VarUpdated[_] => Unit, boardSize: Int)
+class QueensNegotiation(varUpdated: Negotiation.VarUpdated[_ <: NegotiationVar] => Unit, boardSize: Int)
   extends Negotiation(QueensNegotiation.id, varUpdated)
 {
   defineVar.priority
@@ -18,5 +18,5 @@ object QueensNegotiation{
     val y = Var[Int]("y")
   }
 
-  def apply(boardSize: Int)(varUpdated: Negotiation.VarUpdated[_] => Unit) = new QueensNegotiation(varUpdated, boardSize)
+  def apply(boardSize: Int)(varUpdated: Negotiation.VarUpdated[_ <: NegotiationVar] => Unit) = new QueensNegotiation(varUpdated, boardSize)
 }
