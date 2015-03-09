@@ -6,12 +6,12 @@ class QueensController(val id: SystemAgentId,
                        queenNeg: NegotiationId,
                        queenCreator: NegotiatingAgentCreator[Queen],
                        queensCount: Int)
-  extends NegotiationController
+  extends NegotiationController with NegotiationController.InitialAgents
 {
   lazy val initialNegotiatorsCreators: Seq[NegotiatingAgentCreator[_]] = List.fill(queensCount)(queenCreator)
 
-  def nameForAgent(creator: NegotiatingAgentCreator[_], count: Int) = creator.role match{
-    case Queen.Role => s"Queen-$count"
+  def nameForAgent(role: NegotiationRole, index: Int) = role match{
+    case Queen.Role => s"Queen-$index"
   }
 
   private var priorityToAssign = 0
@@ -43,6 +43,8 @@ class QueensController(val id: SystemAgentId,
   protected def onMessageReceived(msg: Message, unhandled: Boolean): Unit = {}
 
   protected def unknownSystemMessage(sysMsg: SystemMessage): Unit = sys.error("unknownSystemMessage: " + sysMsg)
+
+  override def supervisorStrategy = NegotiationController.Supervision.StopAll
 }
 
 object QueensController{

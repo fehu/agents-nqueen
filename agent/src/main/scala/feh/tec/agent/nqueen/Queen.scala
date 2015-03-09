@@ -14,9 +14,9 @@ class Queen(val id: NegotiatingAgentId, val reportTo: SystemAgentRef, boardSize:
   with NegotiationReactionBuilder
   with QueenIssuesHandling
   with QueenNegotiationHandling
-  with ActorLogging
+//  with ActorLogging
 {
-  override lazy val Reporting = new ReportingNegotiationsConfig(messageReceived = true)
+  override lazy val Reporting = new ReportingNegotiationsConfig(messageReceived = true, messageSent = true)
 
   protected lazy val initializeNegotiations = QueensNegotiation(boardSize)_ :: Nil
 
@@ -66,11 +66,13 @@ trait QueenNegotiationHandling {
     val neg = negotiation(negId)
     if(neg.get(NVar.CurrentProposal).isEmpty) setNextProposal(neg)
     spamCurrentProposal(neg)
+    resendDelayedMessages()
   }
   def issuesRemoved(negId: NegotiationId, issues: Seq[Var[_]]) = {}
 
   def handleProposal: PartialFunction[Message, Unit] = {
-    case (msg: Proposal) & InState(FallbackState) => delayMessage(msg)
+    case (msg: Proposal) & InState(FallbackState)                                                           => delayMessage(msg)
+    case (msg: Proposal) if msg.values.keySet != negotiation(msg.negotiation)(NVar.CurrentIssues).toSet     => delayMessage(msg)
     case (msg: Proposal) & WithLowerPriority()    => respondToProposal(msg, !breaksConstrains(msg))
     case (msg: Proposal) & WithHigherPriority()   =>
       if(!breaksConstrains(msg)) respondToProposal(msg, acceptance = true)
@@ -129,7 +131,17 @@ trait QueenNegotiationHandling {
     case (msg: IWillChange) => //ignore
   }
 
-  def breaksConstrains(prop: Proposal): Boolean = ???
+  def breaksConstrains(prop: Proposal): Boolean = {
+    val neg = negotiation(prop.negotiation)
+    prop.values.toList match {
+      case (v1, vv1) :: Nil =>
+        neg(NVar.Issue(v1)) == vv1
+      case (v1, vv1) :: (v2, vv2) :: Nil =>
+        val mv1 = neg(NVar.Issue(v1))
+        val mv2 = neg(NVar.Issue(v2))
+        v1 == v2 || (vv1.asInstanceOf[Int] - mv1.asInstanceOf[Int]).abs != (v1.asInstanceOf[Int] - mv2.asInstanceOf[Int]).abs
+    }
+  }
 
   def setProposalAcceptance(neg: Negotiation, msg: NegotiationResponse, acceptance: Boolean) =
     neg.transform(NVar.ProposalAcceptance)(_ + (msg.sender -> acceptance))
@@ -146,7 +158,11 @@ trait QueenNegotiationHandling {
 
   def setNextProposal(neg: Negotiation) = {
     val it = neg(NVar.DomainIterator)
-    if(it.hasNext) neg.set(NVar.CurrentProposal)(Proposal(neg.id, it.next(), neg(NVar.Priority)))//(NVar.Default.Stubs.CurrentProposal)// todo !!!!!!!!!!!!!!!!!!!!!
+    if(it.hasNext) {
+      val next = it.next()
+      next.foreach{ case (v, vv) => neg.set(NVar.Issue(v))(vv) }
+      neg.set(NVar.CurrentProposal)(Proposal(neg.id, next, neg(NVar.Priority)))
+    }
     else {
       spamMessage(neg, IssueRequest(neg.id, IssueNegotiation.Remove, Nil, neg(NVar.Priority)))
       val fallback = FallbackRequest(neg.id, neg(NVar.Priority))
@@ -158,7 +174,7 @@ trait QueenNegotiationHandling {
 
   def spamMessage(neg: Negotiation, msg: NegotiationMessage) = neg(NVar.Scope).foreach(_ ! msg)
 
-  def spamCurrentProposal(neg: Negotiation) = spamMessage(neg, neg(NVar.CurrentProposal)) // (NVar.Default.Stubs.CurrentProposal)
+  def spamCurrentProposal(neg: Negotiation) = spamMessage(neg, neg(NVar.CurrentProposal))
 
   def haveToFallback(neg: Negotiation, request: FallbackRequest) = {
     resendDelayedMessages()

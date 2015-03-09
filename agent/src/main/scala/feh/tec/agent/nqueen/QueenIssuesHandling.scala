@@ -1,6 +1,5 @@
 package feh.tec.agent.nqueen
 
-import akka.actor.ActorLogging
 import feh.tec.agents.comm._
 import feh.tec.agents.comm.agent._
 import PrioritizedNegotiationsFallback._
@@ -10,7 +9,6 @@ import feh.tec.agents.comm.{NegotiationVar => NVar}
 trait QueenIssuesHandling
   extends RegisteringPriorities
   with DomainIterators
-  with ActorLogging
 {
   agent: NegotiatingAgent with MessageDelaying with NegotiationReactionBuilder =>
 
@@ -20,15 +18,11 @@ trait QueenIssuesHandling
     case req: IssueRequest if isTopPriority(req.negotiation).isEmpty => delayMessage(req)
     case req: IssueRequest if !isTopPriority(req.negotiation).get => //ignore
     case req: IssueRequest =>
-      log.debug("IssueRequest " + isTopPriority(req.negotiation))
       req.action match {
         case IssueNegotiation.Add =>
           issueAggregationRequestedBy += req.sender
           val scope = negotiation(req.negotiation) apply NegotiationVar.Scope
-          if(issueAggregationRequestedBy.size == scope.size) {
-            aggregateNextIssueToNegotiation(req.negotiation)
-//@todo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          }
+          if(issueAggregationRequestedBy.size == scope.size) aggregateNextIssueToNegotiation(req.negotiation)
         case IssueNegotiation.Remove => issueAggregationRequestedBy.clear()
       }
     case IssueDemand(neg, action, issues, _, _) & WithHigherPriority() =>
@@ -45,13 +39,12 @@ trait QueenIssuesHandling
   def issuesRemoved(negId: NegotiationId, issues: Seq[Var[_]])
 
   def aggregateNextIssueToNegotiation(negId: NegotiationId) = {
+    issueAggregationRequestedBy.clear()
     val neg = negotiation(negId)
     val issuesDiff = neg.issues diff neg(NegotiationVar.CurrentIssues)
     if(issuesDiff.isEmpty) negotiationFinished(negId)
     else {
       val nextIssue = issuesDiff.head
-      log.debug("nextIssue = " + nextIssue)
-      addNewIssues(negId, nextIssue :: Nil)
       neg(NVar.Scope).foreach(_ ! IssueDemand(negId, IssueNegotiation.Add, nextIssue :: Nil, neg(NVar.Priority)))
       addNewIssues(negId, nextIssue :: Nil)
     }
